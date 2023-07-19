@@ -1,33 +1,48 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Pressable, Image, ScrollView, useWindowDimensions } from 'react-native';
+// Dependencies
 import React, { useState ,useEffect } from 'react';
-import Card from './Components/Card';
-import {padding, margin, font, color} from "./Styles/base";
+import { StyleSheet, Text, View, Pressable, Image, ScrollView, TextInput, Platform } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import * as NavigationBar from 'expo-navigation-bar';
 import axios from 'axios';
 
+// Components
+import Card from './Components/Card';
+import Pagination from './Components/Pagination';
+
+// Styling
+import { size, color } from "./Styles/base";
+import { loadFonts } from './assets/fonts/fonts';
+
 export default function App() {
-    const [pokemons, setPokemons] = useState([]);
+    // Navigation bar
+    NavigationBar.setBackgroundColorAsync(color.black);
+
+    // Default data request
     const defaultRequest = 'https://pokeapi.co/api/v2/pokemon?limit=20&offset=0';
+
+    // Data fetching
+    const [pokemons, setPokemons] = useState([]);
+
+    // Pagination
     const [previous, setPrevious] = useState('');
     const [next, setNext] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+
+    // Callstate
     const [callState, setCallState] = useState(true);
 
+    // Search
+    const [search, setSearch] = useState('');
+    const [previousSearch, setPreviousSearch] = useState('');
+
+    //Fonts
+    const [isFontsLoaded, setIsFontsLoaded] = useState(false);
     useEffect(() => {
-        const fetchPokemons = async (request) => {
-            try {
-                const response = await axios.get(request);
-                setPokemons(response.data.results);
-                setPrevious(response.data.previous);
-                setNext(response.data.next);
-            } catch (error) {
-                console.error('Error fetching pokemons:', error);
-            }
-            };
-        fetchPokemons(defaultRequest);
+        // Load the custom fonts when the app starts.
+        loadFonts().then(() => setIsFontsLoaded(true));
     }, []);
 
-    const handlePagination = async (request) => {
+    const fetchPokemons = async (request) => {
         try {
             setCallState(false);
             const response = await axios.get(request);
@@ -39,31 +54,120 @@ export default function App() {
             setCallState(true);
         } catch (error) {
             console.error('Error fetching pokemons:', error);
-        }};
+            setCallState(true);
+        }
+    };
 
-    // const {width, height} = useWindowDimensions();
+    useEffect(() => {
+        fetchPokemons(defaultRequest);
+    }, []);
+
+    useEffect(() => {
+        if (search.trim() === '' && previousSearch.trim() !== '') {
+        fetchPokemons(defaultRequest);
+        };
+        setPreviousSearch(search);
+    }, [search]);
+
+    const handlePagination = async (request) => {
+        fetchPokemons(request);
+    };
+
+    // const launchSearch = async () => {
+    //     console.log(search);
+    //     if (typeof search === 'string' && search.trim() !== '') {
+    //         let cleanedSearch = search.trim().toLowerCase();
+    //         console.log('Cleaned Search:', cleanedSearch);
+    //         try {
+    //             setCallState(false);
+    //             if (cleanedSearch === '') {
+    //                 const response = await axios.get(defaultRequest);
+    //                 setCurrentPage(Number(pageNumber) / 20 + 1);
+    //                 setPokemons(response.data.results);
+    //                 setPrevious(response.data.previous);
+    //                 setNext(response.data.next);
+    //             } else {
+    //                 const response = await axios.get(`https://pokeapi.co/api/v2/pokemon?limit=20&offset=0`);
+    //                 setCurrentPage(1);
+    //                 setPokemons([response.data]);
+    //                 setPrevious(null);
+    //                 setNext(null);
+    //             }
+    //             const response = await axios.get(`https://pokeapi.co/api/v2/pokemon/${cleanedSearch}`);
+    //             setPokemons([response.data]);
+    //             setPrevious(null);
+    //             setNext(null);
+    //             setCurrentPage(1);
+    //             setCallState(true);
+    //         } catch (error) {
+    //             console.error('Error fetching pokemon:', error);
+    //             setCallState(true);
+    //         }
+    //     } else {
+    //         console.log('Invalid search term or no search term provided.');
+    //         return;
+    //     }
+    // };
+
+    const launchSearch = async () => {
+        console.log(search);
+        if (typeof search === 'string' && search.trim() !== '') {
+        let cleanedSearch = search.trim().toLowerCase();
+        try {
+            setCallState(false);
+            let response;
+
+            if (cleanedSearch === '') {
+                response = await axios.get(defaultRequest);
+            } else {
+                response = await axios.get(`https://pokeapi.co/api/v2/pokemon/${cleanedSearch}`);
+            }
+
+            if (response.data) {
+                setPokemons([response.data]);
+                setPrevious(null);
+                setNext(null);
+                setCurrentPage(1);
+            } else {
+                setPokemons([]);
+                setPrevious(null);
+                setNext(null);
+                setCurrentPage(1);
+            }
+
+            setCallState(true);
+        } catch (error) {
+            console.error('Error fetching pokemon:', error);
+            setCallState(true);
+        }
+        } else {
+            fetchPokemons(defaultRequest);
+        }
+    };
+
+    if (!isFontsLoaded) {
+        return <View />; // You might show a loading screen or placeholder until fonts are loaded.
+    }
 
     return (
         <View style={styles.container}>
             <Image resizeMode='contain' style={{width:300}} source={require('./assets/logoV2.png')} />
-            <View style={styles.pagination}>
-                <Pressable style={styles.paginationButton} onPress={() => handlePagination(previous)} disabled={!previous}>
-                    <Text style={styles.chevron}>
-                        {"\u2039"}
-                    </Text>
-                </Pressable>
-                {callState ? <Text style={styles.currentPageText}>{currentPage}</Text> : <Text style={styles.currentPageText}>...</Text>}
-                <Pressable style={styles.paginationButton} onPress={() => handlePagination(next)} disabled={!next}>
-                    <Text style={styles.chevron}>
-                        {"\u203a"}
-                    </Text>
-                </Pressable>
+            <Text style={{color: color.white, fontSize: size.sm}}>{search}</Text>
+            <View style={styles.searchbar}>
+                {!callState && <Text style={styles.searchbarLoader}>Loading...</Text>}
+                {callState && <TextInput
+                    onChangeText={newText => setSearch(newText)}
+                    defaultValue={search}
+                    style={styles.searchbarInput} placeholder="Search a Pokémon name..." placeholderTextColor={color.grey}
+                    onEndEditing={launchSearch}
+                />}
             </View>
+            {pokemons.length > 1 && <Pagination callState={callState} handlePagination={handlePagination} previous={previous} next={next} currentPage={currentPage}/>}
             <ScrollView>
                 {pokemons.map((pokemon, index) => (
-                <Card key={index} name={pokemon.name} data={pokemon.url} callState={callState}/>
+                <Card key={index} name={pokemon.name} data={pokemon.url} callState={callState} fontCallState={isFontsLoaded} />
                 ), [])}
-                <StatusBar style="auto" />
+                <StatusBar backgroundColor={color.black} barStyle="light-content" and style="light" />
             </ScrollView>
         </View>
     );
@@ -71,37 +175,70 @@ export default function App() {
 
 const styles = StyleSheet.create({
     container: {
-        marginTop: margin.sm,
-        marginBottom: margin.sm,
+        marginTop: size.sm,
+        marginBottom: size.sm,
         flex: 1,
         backgroundColor: color.black,
         alignItems: 'center',
         justifyContent: 'center',
+        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
     },
     pagination: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginVertical: margin.xs,
+        marginVertical: size.xs,
     },
     paginationButton: {
-        padding: padding.xs,
+        padding: size.xs,
         alignItems: 'center',
         justifyContent: 'center',
     },
     chevron: {
-        color: color.black,
-        backgroundColor: color.white,
-        fontSize: font.sm,
+        color: color.white,
+        fontSize: size.sm,
         width: 40,
         height: 30,
         borderRadius: 10,
         textAlign: 'center',
     },
     currentPageText: {
-        fontSize: font.sm,
+        fontSize: size.sm,
         fontWeight: 'bold',
         marginHorizontal: 15,
         color: color.white,
+    },
+    currentPageLoader: {
+        fontSize: size.sm,
+        fontWeight: 'bold',
+        marginHorizontal: 15,
+        color: color.white,
+        paddingVertical: 12,
+    },
+    searchbar: {
+        display: 'flex',
+        flexDirection: 'row',
+    },
+    searchbarLoader: {
+        color: color.white,
+        fontSize: size.sm,
+        paddingVertical: 16,
+    },
+    searchbarInput: {
+        height: 40,
+        color: color.white,
+        borderColor: color.grey,
+        borderWidth: 1,
+        borderRadius: 10,
+        width: 275,
+        marginVertical: size.xs,
+        padding: size.xs,
+    },
+    searchbarButton: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexGrow: 0,
+        marginLeft: size.xs,
     },
 });
