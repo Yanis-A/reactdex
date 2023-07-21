@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { size, color } from "../Styles/base";
 
-export default function App({callState, handlePagination, previous, next, currentPage}) {
+export default function Pagination({callState, handlePagination, previous, next, currentPage}) {
     return (
         <View style={styles.pagination}>
             {callState && <Pressable style={styles.paginationButton} onPress={() => handlePagination(previous)} disabled={!previous}>
